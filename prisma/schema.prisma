@@ -1,0 +1,121 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Couple {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  invites     Invite[]
+  photos      Photo[]
+  notes       Note[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions Session[]
+  photos   Photo[]
+  notes    Note[]   @relation("NoteAuthor")
+
+  membership Membership?
+  invitesCreated Invite[] @relation("InviteCreatedBy")
+  invitesAccepted Invite[] @relation("InviteAcceptedBy")
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  role      String   @default("OWNER") // OWNER | MEMBER (mantem simples)
+  createdAt DateTime @default(now())
+
+  couple   Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  coupleId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @unique
+
+  @@unique([coupleId, userId])
+  @@index([coupleId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  src       String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  couple   Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  coupleId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([coupleId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  couple   Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  coupleId String
+
+  author   User   @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  @@index([createdAt])
+  @@index([authorId])
+  @@index([coupleId])
+}
+
+model Invite {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  email     String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  acceptedAt DateTime?
+
+  couple   Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  coupleId String
+
+  createdBy   User   @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+
+  acceptedBy   User?   @relation("InviteAcceptedBy", fields: [acceptedById], references: [id], onDelete: SetNull)
+  acceptedById String?
+
+  @@index([coupleId])
+  @@index([email])
+  @@index([expiresAt])
+}
